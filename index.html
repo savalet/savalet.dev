@@ -1,1 +1,1190 @@
-Work in progress...
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>savalet — Savinien Petitjean</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<script>
+const TWEAKS = {
+  "accent": "lime",
+  "density": "comfortable",
+  "showBootAnim": true,
+  "lang": "fr"
+};
+</script>
+<style>
+  :root{
+    --bg: #0b0d0c;
+    --bg-soft: #111413;
+    --bg-panel: #141816;
+    --line: #1f2421;
+    --line-soft: #171b19;
+    --fg: #d7dbd4;
+    --fg-dim: #8a928a;
+    --fg-faint: #525751;
+    --fg-bright: #f4f6f1;
+    --accent: #b8ff4a;      /* lime */
+    --accent-soft: rgba(184,255,74,.12);
+    --warn: #ffb454;
+    --err: #ff6b6b;
+    --info: #7dd3fc;
+    --mag: #c792ea;
+    --serif: "Instrument Serif", ui-serif, Georgia, serif;
+    --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  [data-accent="amber"]{ --accent:#ffb454; --accent-soft:rgba(255,180,84,.14); }
+  [data-accent="magenta"]{ --accent:#e879c6; --accent-soft:rgba(232,121,198,.14); }
+  [data-accent="cyan"]{ --accent:#7dd3fc; --accent-soft:rgba(125,211,252,.14); }
+  [data-accent="white"]{ --accent:#f4f6f1; --accent-soft:rgba(244,246,241,.10); }
+
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; background:var(--bg); color:var(--fg); font-family:var(--mono); font-size:14px; line-height:1.55; -webkit-font-smoothing:antialiased; }
+  body{
+    background-image:
+      radial-gradient(1200px 600px at 80% -10%, rgba(184,255,74,.05), transparent 60%),
+      radial-gradient(900px 500px at 0% 110%, rgba(125,211,252,.04), transparent 60%);
+    min-height:100vh;
+  }
+  a{ color:inherit; text-decoration:none; }
+  ::selection{ background:var(--accent); color:#0b0d0c; }
+
+  .scanlines::before{
+    content:""; position:fixed; inset:0; pointer-events:none; z-index:1000;
+    background: repeating-linear-gradient(to bottom, rgba(255,255,255,.012) 0 1px, transparent 1px 3px);
+    mix-blend-mode: overlay;
+  }
+
+  /* Top bar */
+  .topbar{
+    position:sticky; top:0; z-index:50;
+    display:flex; align-items:center; justify-content:space-between;
+    padding:10px 22px; border-bottom:1px solid var(--line);
+    background: rgba(11,13,12,.85); backdrop-filter: blur(8px);
+    font-size:12px;
+  }
+  .topbar .left{ display:flex; align-items:center; gap:14px; color:var(--fg-dim); }
+  .dot{ width:10px; height:10px; border-radius:50%; background:var(--accent); box-shadow:0 0 12px var(--accent); }
+  .sep{ color:var(--fg-faint); }
+  .topbar .right{ display:flex; gap:18px; color:var(--fg-dim); }
+  .topbar a:hover{ color:var(--accent); }
+  .kbd{ border:1px solid var(--line); padding:1px 6px; border-radius:3px; font-size:11px; color:var(--fg-dim); background:var(--bg-soft); }
+
+  /* Layout */
+  .shell{
+    display:grid;
+    grid-template-columns: 260px minmax(0, 1fr);
+    gap: 0;
+    max-width: 1440px;
+    margin: 0 auto;
+    border-inline: 1px solid var(--line);
+    min-height: calc(100vh - 41px);
+  }
+  aside{
+    border-right:1px solid var(--line);
+    padding: 28px 22px;
+    position: sticky; top:41px;
+    align-self:start;
+    height: calc(100vh - 41px);
+    overflow:auto;
+    display:flex;
+    flex-direction:column;
+  }
+  aside h1{
+    font-family: var(--serif);
+    font-weight: 400;
+    font-size: 34px;
+    line-height: 1.05;
+    margin: 0 0 2px;
+    color:var(--fg-bright);
+    letter-spacing: -.01em;
+  }
+  aside .handle{ color:var(--accent); font-size:13px; }
+  aside .meta{ color:var(--fg-dim); font-size:12px; margin-top:14px; }
+  aside .meta div{ display:flex; justify-content:space-between; align-items:baseline; gap:10px; padding:4px 0; border-bottom:1px dashed var(--line-soft); font-size:11.5px; }
+  aside .meta div span:first-child{ color:var(--fg-dim); flex-shrink:0; }
+  aside .meta div span:last-child{ color:var(--fg); text-align:right; }
+  aside nav{ margin-top:26px; display:flex; flex-direction:column; gap:2px; }
+  aside nav a{
+    color:var(--fg-dim); font-size:13px; padding:6px 8px; border-radius:4px;
+    display:flex; align-items:center; gap:10px; border:1px solid transparent;
+  }
+  aside nav a .idx{ color:var(--fg-faint); font-size:11px; width:20px; }
+  aside nav a:hover{ color:var(--fg-bright); background:var(--bg-soft); }
+  aside nav a.active{ color:var(--accent); border-color:var(--line); background:var(--accent-soft); }
+  aside nav a.active .idx{ color:var(--accent); }
+
+  aside .footer-side{
+    margin-top: auto;
+    padding-top: 20px;
+    font-size:11px; color:var(--fg-faint); border-top:1px dashed var(--line-soft);
+  }
+  .pulse{ display:inline-block; width:7px; height:7px; border-radius:50%; background:var(--accent); box-shadow:0 0 8px var(--accent); animation: pulse 2s ease-in-out infinite; vertical-align:middle; margin-right:6px; }
+  @keyframes pulse{ 0%,100%{opacity:1} 50%{opacity:.3} }
+
+  /* Main */
+  main{ min-width:0; }
+  section{ padding: 56px 48px; border-bottom: 1px solid var(--line); position:relative; }
+  section .sec-tag{
+    position:absolute; top:20px; right:24px;
+    font-size:11px; color:var(--fg-faint); letter-spacing:.08em;
+  }
+  .prompt-line{
+    color:var(--fg-dim); font-size:12px; margin-bottom:8px;
+  }
+  .prompt-line .p1{ color:var(--accent); }
+  .prompt-line .p2{ color:var(--info); }
+  .prompt-line .arrow{ color:var(--fg-dim); }
+
+  h2.title{
+    font-family: var(--serif);
+    font-weight:400;
+    font-size: clamp(44px, 5.2vw, 64px);
+    line-height: 1.0;
+    letter-spacing: -.02em;
+    margin: 4px 0 26px;
+    color: var(--fg-bright);
+    text-wrap: balance;
+  }
+  h2.title em{ font-style: italic; color: var(--accent); }
+
+  .lede{ font-size: 15px; color: var(--fg); max-width: 62ch; line-height:1.7; }
+  .lede b{ color:var(--fg-bright); font-weight:500; }
+
+  /* HERO ascii */
+  .hero-grid{
+    display:grid; grid-template-columns: 1fr 300px; gap:40px; align-items:start;
+  }
+  .ascii-card{
+    border:1px solid var(--line); background: var(--bg-panel);
+    padding: 14px; font-size: 11px; color: var(--accent);
+    line-height: 1.1; white-space: pre; overflow:hidden;
+    box-shadow: inset 0 0 80px rgba(184,255,74,.04);
+  }
+  .ascii-card .lbl{ color:var(--fg-dim); font-size:10px; margin-bottom:8px; letter-spacing:.1em; }
+
+  .stats-row{
+    display:grid; grid-template-columns: repeat(4, 1fr); gap:0;
+    margin-top: 32px; border:1px solid var(--line); border-radius:2px;
+    background: var(--bg-soft);
+  }
+  .stat{ padding: 18px 20px; border-right:1px solid var(--line); }
+  .stat:last-child{ border-right:none; }
+  .stat .k{ font-size: 10px; color:var(--fg-dim); letter-spacing:.12em; text-transform:uppercase; }
+  .stat .v{ font-family: var(--serif); font-size: 34px; color:var(--fg-bright); margin-top:4px; line-height:1; }
+  .stat .v small{ font-family:var(--mono); font-size:12px; color:var(--fg-dim); margin-left:4px; }
+
+  /* STACK graph */
+  .stack-wrap{ display:grid; grid-template-columns: 1.3fr 1fr; gap:32px; margin-top:12px; }
+  .stack-graph{
+    border:1px solid var(--line); background: var(--bg-panel);
+    padding: 20px; position:relative; min-height: 420px;
+    overflow: hidden;
+  }
+  .stack-graph svg{ width:100%; height:420px; display:block; }
+  .node-label{
+    font-family: var(--mono); font-size: 11px; fill: var(--fg);
+  }
+  .node-label.center{ fill: var(--accent); font-weight:600; }
+  .node-label.dim{ fill: var(--fg-dim); font-size:10px; }
+  .stack-list{ display:flex; flex-direction:column; gap:16px; }
+  .stack-group{ border:1px solid var(--line); padding:14px 16px; background:var(--bg-soft); }
+  .stack-group h4{ margin:0 0 10px; font-size:11px; color:var(--fg-dim); letter-spacing:.12em; text-transform:uppercase; font-weight:500; display:flex; justify-content:space-between; }
+  .stack-group h4 span{ color:var(--accent); }
+  .stack-group .items{ display:flex; flex-wrap:wrap; gap:6px; }
+  .chip{
+    border:1px solid var(--line); padding:3px 9px; font-size:12px; color:var(--fg);
+    border-radius:2px; background: var(--bg-panel);
+    transition: all .15s ease;
+  }
+  .chip:hover{ border-color:var(--accent); color:var(--accent); background:var(--accent-soft); cursor:default; }
+  .chip.primary{ border-color:var(--accent); color:var(--accent); }
+
+  /* PROJECTS */
+  .git-log{ margin-top:20px; font-size:13px; }
+  .commit{
+    display:grid; grid-template-columns: 28px 100px 1fr auto;
+    gap: 14px; padding: 14px 4px; border-bottom:1px dashed var(--line-soft);
+    align-items:start; cursor:pointer; transition: background .15s;
+  }
+  .commit:hover{ background: var(--bg-soft); }
+  .commit:hover .hash{ color:var(--accent); }
+  .graph{ color: var(--accent); font-family:var(--mono); line-height:1.4; user-select:none; }
+  .hash{ color:var(--fg-dim); font-size:12px; }
+  .msg .t{ color:var(--fg-bright); font-weight:500; }
+  .msg .d{ color:var(--fg-dim); font-size:12px; margin-top:3px; }
+  .msg .tags{ margin-top:6px; display:flex; flex-wrap:wrap; gap:6px; }
+  .msg .tag{ font-size:10px; padding:1px 6px; border:1px solid var(--line); color:var(--fg-dim); border-radius:2px; }
+  .msg .tag.lang{ color:var(--info); border-color: rgba(125,211,252,.3); }
+  .msg .tag.star{ color:var(--accent); border-color: rgba(184,255,74,.3); }
+  .when{ color:var(--fg-faint); font-size:11px; white-space:nowrap; }
+
+  /* INFRA panel */
+  .infra-grid{ display:grid; grid-template-columns: 1fr 1fr; gap:20px; margin-top:12px; }
+  .panel{
+    border:1px solid var(--line); background:var(--bg-panel);
+    padding: 18px 20px;
+  }
+  .panel h3{
+    font-size:11px; color:var(--fg-dim); letter-spacing:.12em; text-transform:uppercase;
+    margin: 0 0 14px; font-weight:500; display:flex; justify-content:space-between; align-items:center;
+  }
+  .panel h3 .status{ color:var(--accent); font-size:10px; }
+  .bar-row{ display:grid; grid-template-columns: 100px 1fr 50px; align-items:center; gap:12px; padding: 6px 0; font-size:12px; }
+  .bar-row .name{ color:var(--fg); }
+  .bar{ height:6px; background:var(--bg); border:1px solid var(--line); position:relative; overflow:hidden; }
+  .bar i{ position:absolute; left:0; top:0; bottom:0; background: var(--accent); display:block; }
+  .bar-row .v{ text-align:right; color:var(--fg-dim); }
+
+  .uptime-grid{
+    display:grid; grid-template-columns: repeat(60, 1fr); gap:2px;
+    margin: 8px 0 6px;
+  }
+  .uptime-grid i{ height:20px; background: var(--accent); opacity:.85; }
+  .uptime-grid i.down{ background: var(--err); opacity:1; }
+  .uptime-grid i.warn{ background: var(--warn); }
+  .uptime-foot{ display:flex; justify-content:space-between; font-size:11px; color:var(--fg-dim); }
+
+  /* Journal (section 4) */
+  .journal{ display:flex; flex-direction:column; gap:14px; }
+  .j-entry{ display:grid; grid-template-columns: 52px 1fr; gap:14px; }
+  .j-date{ font-family:var(--serif); font-size:22px; color:var(--accent); line-height:1; padding-top:2px; }
+  .j-t{ color:var(--fg-bright); font-size:13px; font-weight:500; }
+  .j-d{ color:var(--fg-dim); font-size:12px; margin-top:4px; line-height:1.5; }
+  .reads{ display:flex; flex-direction:column; gap:14px; }
+  .read{ border-left:2px solid var(--accent); padding:2px 0 2px 12px; }
+  .read-k{ font-size:10px; color:var(--fg-dim); letter-spacing:.14em; text-transform:uppercase; }
+  .read-v{ color:var(--fg-bright); font-size:13px; margin-top:2px; }
+  .read-m{ color:var(--fg-faint); font-size:11px; margin-top:2px; }
+  .goals{ display:grid; grid-template-columns: repeat(3, 1fr); gap:20px; }
+  .goal-head{ display:flex; justify-content:space-between; font-size:13px; color:var(--fg); margin-bottom:6px; }
+  .goal-head b{ color:var(--fg-bright); font-weight:500; }
+  .goal-head span{ color:var(--fg-dim); font-size:11px; font-style:italic; }
+  .goal .bar{ margin-bottom:8px; }
+  .goal-note{ font-size:11px; color:var(--fg-dim); line-height:1.5; }
+  @media (max-width:900px){ .goals{ grid-template-columns:1fr; } }
+
+  /* Language dropdown */
+  .lang-drop{ position:relative; }
+  .lang-btn{
+    background:transparent; border:1px solid var(--line); color:var(--fg-dim);
+    font-family:var(--mono); font-size:11px; padding:3px 8px; cursor:pointer; border-radius:3px;
+    display:flex; align-items:center; gap:5px;
+  }
+  .lang-btn:hover{ color:var(--accent); border-color:var(--accent); }
+  .lang-menu{
+    position:absolute; right:0; top:26px; background:var(--bg-panel); border:1px solid var(--line);
+    min-width:120px; display:none; z-index:60; border-radius:3px; overflow:hidden;
+  }
+  .lang-menu.open{ display:block; }
+  .lang-menu button{
+    display:block; width:100%; text-align:left; background:none; border:none;
+    color:var(--fg); font-family:var(--mono); font-size:12px; padding:8px 12px; cursor:pointer;
+  }
+  .lang-menu button:hover{ background:var(--bg-soft); color:var(--accent); }
+  .lang-menu button.active{ color:var(--accent); }
+
+  /* Terminal */
+  .terminal{
+    margin-top: 16px;
+    border:1px solid var(--line); background:#070908;
+    border-radius:4px; overflow:hidden;
+  }
+  .term-head{
+    display:flex; align-items:center; gap:8px; padding:8px 14px;
+    border-bottom:1px solid var(--line); background: var(--bg-panel);
+    font-size:11px; color:var(--fg-dim);
+  }
+  .term-head .dots{ display:flex; gap:6px; }
+  .term-head .dots i{ width:10px; height:10px; border-radius:50%; display:block; background:#3a3f3c; }
+  .term-head .title-t{ flex:1; text-align:center; }
+  .term-body{
+    padding: 14px 18px; font-size:13px; min-height: 220px;
+    max-height: 340px; overflow-y:auto;
+  }
+  .term-body .line{ white-space:pre-wrap; word-break:break-word; }
+  .term-body .cmd .p1{ color:var(--accent); }
+  .term-body .cmd .p2{ color:var(--info); }
+  .term-body .cmd .txt{ color:var(--fg-bright); }
+  .term-body .out{ color:var(--fg); margin-bottom:8px; }
+  .term-body .out .k{ color:var(--mag); }
+  .term-body .out .a{ color:var(--accent); }
+  .term-body .out .e{ color:var(--err); }
+  .term-input-row{
+    display:flex; align-items:center; gap:8px; padding: 0 18px 14px;
+    font-size: 13px;
+  }
+  .term-input-row .prompt{ color:var(--accent); }
+  .term-input-row .prompt b{ color:var(--info); font-weight:normal; }
+  .term-input-row input{
+    flex:1; background:transparent; border:none; color:var(--fg-bright);
+    font-family:var(--mono); font-size:13px; outline:none; caret-color:var(--accent);
+  }
+  .caret{ display:inline-block; width:8px; height:14px; background:var(--accent); vertical-align: -2px; animation: blink 1.1s step-end infinite; margin-left:2px; }
+  @keyframes blink{ 50%{ opacity:0; } }
+
+  /* CONTACT */
+  .contact-grid{ display:grid; grid-template-columns: 1fr 1fr; gap: 28px; margin-top: 20px; }
+  .contact-card{
+    border:1px solid var(--line); padding: 24px; background:var(--bg-panel);
+    display:flex; flex-direction:column; gap:6px;
+    transition: border-color .2s, transform .2s;
+  }
+  .contact-card:hover{ border-color:var(--accent); transform: translateY(-2px); }
+  .contact-card .lbl{ font-size:11px; color:var(--fg-dim); letter-spacing:.12em; text-transform:uppercase; }
+  .contact-card .val{ font-family:var(--serif); font-size:28px; color:var(--fg-bright); }
+  .contact-card .hint{ font-size:12px; color:var(--fg-faint); margin-top:6px; }
+
+  .footer-bottom{
+    padding: 24px 48px; display:flex; justify-content:space-between;
+    font-size:11px; color:var(--fg-faint);
+  }
+
+  /* Tweaks panel */
+  .tweaks{
+    position: fixed; bottom: 20px; right: 20px; z-index: 100;
+    border:1px solid var(--line); background: rgba(17,20,19,.95); backdrop-filter: blur(10px);
+    padding: 14px; min-width: 240px; font-size:12px;
+    display:none; border-radius:4px;
+    box-shadow: 0 20px 60px rgba(0,0,0,.5);
+  }
+  .tweaks.open{ display:block; }
+  .tweaks h5{ margin:0 0 10px; font-size:10px; color:var(--fg-dim); letter-spacing:.12em; text-transform:uppercase; display:flex; justify-content:space-between; }
+  .tweaks h5 button{ background:none; border:none; color:var(--fg-dim); cursor:pointer; font-size:14px; }
+  .tweak-row{ display:flex; justify-content:space-between; align-items:center; padding:6px 0; }
+  .tweak-row .lbl{ color:var(--fg); font-size:12px; }
+  .swatches{ display:flex; gap:6px; }
+  .swatch{ width:18px; height:18px; border-radius:50%; border:1px solid var(--line); cursor:pointer; }
+  .swatch.active{ box-shadow: 0 0 0 2px var(--bg), 0 0 0 3px var(--accent); }
+
+  /* Boot overlay */
+  .boot{
+    position:fixed; inset:0; background:#0b0d0c; z-index:500;
+    display:flex; flex-direction:column; justify-content:center; padding: 10vh 8vw;
+    font-size:13px; color:var(--fg); font-family:var(--mono);
+  }
+  .boot .l{ opacity:0; animation: line-in .05s forwards; }
+  @keyframes line-in{ to{ opacity:1; } }
+  .boot.hide{ animation: boot-out .4s forwards; }
+  @keyframes boot-out{ to{ opacity:0; transform: translateY(-20px); visibility:hidden; } }
+
+  @media (max-width: 900px){
+    .shell{ grid-template-columns: 1fr; }
+    aside{ position:static; height:auto; border-right:none; border-bottom:1px solid var(--line); }
+    aside .footer-side{ position:static; margin-top: 20px; }
+    section{ padding: 40px 24px; }
+    h2.title{ font-size: 46px; }
+    .hero-grid, .stack-wrap, .infra-grid, .contact-grid, .stats-row{ grid-template-columns: 1fr; }
+    .stat{ border-right:none; border-bottom:1px solid var(--line); }
+  }
+</style>
+</head>
+<body class="scanlines">
+
+<!-- BOOT OVERLAY -->
+<div class="boot" id="boot">
+  <div class="l" style="animation-delay:0s">$ ssh me@savalet.dev</div>
+  <div class="l" style="animation-delay:.15s">The authenticity of host 'savalet.dev (185.199.108.153)' can't be established.</div>
+  <div class="l" style="animation-delay:.25s">ED25519 key fingerprint is SHA256:savalet/42bPQ7fE...</div>
+  <div class="l" style="animation-delay:.4s">Are you sure you want to continue connecting? <span style="color:var(--accent)">yes</span></div>
+  <div class="l" style="animation-delay:.55s" >Warning: Permanently added 'savalet.dev' to the list of known hosts.</div>
+  <div class="l" style="animation-delay:.75s">savalet@portfolio:~$ <span style="color:var(--accent)">./welcome.sh</span></div>
+  <div class="l" style="animation-delay:.95s; color:var(--fg-dim)">loading modules ... <span style="color:var(--accent)">ok</span></div>
+  <div class="l" style="animation-delay:1.1s; color:var(--fg-dim)">mounting /home/savalet/projects ... <span style="color:var(--accent)">ok</span></div>
+  <div class="l" style="animation-delay:1.25s; color:var(--fg-dim)">starting nginx [vyme-edge] ... <span style="color:var(--accent)">ok</span></div>
+  <div class="l" style="animation-delay:1.4s">Welcome back. Last login: 2026-04-18 21:29:04 from 45.88.180.254<span class="caret"></span></div>
+</div>
+
+<!-- TOP BAR -->
+<div class="topbar">
+  <div class="left">
+    <span class="dot"></span>
+    <b style="color:var(--fg-bright);font-weight:500">savalet.dev</b>
+    <span class="sep">—</span>
+    <span>zsh · 120×40</span>
+    <span class="sep">—</span>
+    <span>tmux:<span style="color:var(--accent)">portfolio</span></span>
+  </div>
+  <div class="right">
+    <a href="#whoami" data-i18n="nav_whoami">whoami</a>
+    <a href="#stack" data-i18n="nav_stack">stack</a>
+    <a href="#projects" data-i18n="nav_projects">projects</a>
+    <a href="#infra" data-i18n="nav_infra">now</a>
+    <a href="#contact" data-i18n="nav_contact">contact</a>
+    <span class="kbd">⌘K</span>
+    <div class="lang-drop">
+      <button class="lang-btn" id="lang-btn"><span id="lang-cur">EN</span> ▾</button>
+      <div class="lang-menu" id="lang-menu">
+        <button data-lang="en">English</button>
+        <button data-lang="fr">Français</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="shell">
+
+  <!-- SIDEBAR -->
+  <aside>
+    <div class="handle">~/savalet</div>
+    <h1>Savinien<br><em style="font-style:italic">Petitjean</em></h1>
+    <div style="font-size:12px;color:var(--fg-dim);margin-top:8px">
+      <span class="pulse"></span><span data-i18n="side_avail">Available for freelance &amp; collabs</span>
+    </div>
+    <div class="meta">
+      <div><span data-i18n="side_role">role</span><span>sysadmin / dev</span></div>
+      <div><span data-i18n="side_based">based</span><span>Rennes, FR 🇫🇷</span></div>
+      <div><span data-i18n="side_age">age</span><span>21</span></div>
+      <div><span data-i18n="side_school">school</span><span>Epitech · 2029</span></div>
+      <div><span data-i18n="side_build">building</span><span>vyme.fr</span></div>
+      <div><span data-i18n="side_shell">shell</span><span>zsh</span></div>
+    </div>
+
+    <nav>
+      <a href="#whoami" class="active"><span class="idx">01</span><span data-i18n="nav_whoami">whoami</span></a>
+      <a href="#stack"><span class="idx">02</span><span data-i18n="nav_stack">stack</span></a>
+      <a href="#projects"><span class="idx">03</span><span data-i18n="nav_projects">projects</span></a>
+      <a href="#infra"><span class="idx">04</span><span data-i18n="nav_now">now</span></a>
+      <a href="#term"><span class="idx">05</span><span data-i18n="nav_term">terminal</span></a>
+      <a href="#contact"><span class="idx">06</span><span data-i18n="nav_contact">contact</span></a>
+    </nav>
+
+    <div class="footer-side">
+      <div>cc'd to /dev/null</div>
+      <div>© 2026 · made with &amp; ☕</div>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main>
+
+    <!-- HERO / WHOAMI -->
+    <section id="whoami" data-screen-label="01 whoami">
+      <span class="sec-tag">§ 01 / 06</span>
+      <div class="prompt-line">
+        <span class="p1">savalet</span><span class="arrow">@</span><span class="p2">portfolio</span><span class="arrow">:~$ </span>cat whoami.md
+      </div>
+      <h2 class="title" data-i18n="hero_title">I break things,<br>then I <em>ship them</em> — <br>with a <em>kubelet</em> on top.</h2>
+      <p class="lede" data-i18n="hero_lede">
+        Hey — I'm <b>Savinien</b>, aka <b>savalet</b>. Student at <b>Epitech Rennes</b>, I spend my days
+        between <b>low-level C</b>, <b>self-hosted infra</b> and <b>Nix flake tinkering</b>. I'm building <b>Vyme</b>,
+        my bare-metal hosting company, and the <b>epitech</b> projects.
+        I like reproducible systems, tidy cables, and well-formatted logs.
+      </p>
+
+      <div class="hero-grid" style="margin-top:32px">
+        <div>
+          <div style="color:var(--fg-dim);font-size:11px;margin-bottom:6px">$ fortune | cowsay -f tux</div>
+          <pre style="font-size:11px;color:var(--fg-dim);margin:0;white-space:pre;line-height:1.25">
+ ______________________________________
+/ Everything is a file, including your  \
+\ problems. Redirect them to /dev/null. /
+ --------------------------------------
+   \
+    \    .--.
+        |o_o |
+        |:_/ |
+       //   \ \
+      (|     | )
+     /'\_   _/`\
+     \___)=(___/
+          </pre>
+        </div>
+        <div class="ascii-card">
+<div class="lbl">// neofetch@savalet</div>
+<span style="color:var(--info)">OS</span>      <span style="color:var(--fg)">macOS 26.4 (Tahoe) / NixOS 25.11</span>
+<span style="color:var(--info)">Kernel</span>  <span style="color:var(--fg)">Darwin / Linux<span>
+<span style="color:var(--info)">Shell</span>   <span style="color:var(--fg)">zsh 5.9</span>
+<span style="color:var(--info)">WM</span>      <span style="color:var(--fg)">Hyprland</span>
+<span style="color:var(--info)">CPU</span>     <span style="color:var(--fg)">Apple M4 Pro / Ryzen 7 8700F</span>
+<span style="color:var(--info)">Uptime</span>  <span style="color:var(--fg)">14d 3h 12m</span>
+<span style="color:var(--info)">Host</span>    <span style="color:var(--fg)">pc-1</span>
+
+<span style="color:var(--fg-dim)">────────────────────────────</span>
+<span style="color:var(--warn)">goals</span>   ship. break. learn.
+<span style="color:var(--warn)">stack</span>   C • CPP • Nix • Node • Dart
+        </div>
+      </div>
+
+      <div class="stats-row">
+        <div class="stat"><div class="k">Public repos</div><div class="v">29<small>/ to many</small></div></div>
+        <div class="stat"><div class="k">Years coding</div><div class="v">7+<small>years</small></div></div>
+        <div class="stat"><div class="k">Orgs</div><div class="v">12<small>active</small></div></div>
+        <div class="stat"><div class="k">Cans/day</div><div class="v">1.2<small></small></div></div>
+      </div>
+    </section>
+
+    <!-- STACK -->
+    <section id="stack" data-screen-label="02 stack">
+      <span class="sec-tag">§ 02 / 06</span>
+      <div class="prompt-line">
+        <span class="p1">savalet</span><span class="arrow">@</span><span class="p2">portfolio</span><span class="arrow">:~$ </span>nix-shell -p my-stack; my-stack --display
+      </div>
+      <h2 class="title" data-i18n="stack_title">Tech <em>constellation</em>.</h2>
+      <p class="lede" data-i18n="stack_lede">40+ tools in daily rotation. Main axes: <b>low-level &amp; systems</b>, <b>cloud &amp; self-host</b>, <b>full-stack web</b>. Hover the graph.</p>
+
+      <div class="stack-wrap">
+        <div class="stack-graph">
+          <div style="color:var(--fg-dim);font-size:10px;letter-spacing:.12em;margin-bottom:6px">// DEPENDENCY GRAPH · live</div>
+          <svg viewBox="0 0 560 420" preserveAspectRatio="xMidYMid meet">
+            <defs>
+              <radialGradient id="g1" cx="50%" cy="50%" r="50%">
+                <stop offset="0%" stop-color="var(--accent)" stop-opacity=".35"/>
+                <stop offset="100%" stop-color="var(--accent)" stop-opacity="0"/>
+              </radialGradient>
+            </defs>
+            <circle cx="280" cy="210" r="110" fill="url(#g1)"/>
+
+            <!-- edges -->
+            <g stroke="var(--line)" stroke-width="1" fill="none" opacity=".7">
+              <line x1="280" y1="210" x2="110" y2="90"/>
+              <line x1="280" y1="210" x2="460" y2="80"/>
+              <line x1="280" y1="210" x2="500" y2="220"/>
+              <line x1="280" y1="210" x2="470" y2="350"/>
+              <line x1="280" y1="210" x2="280" y2="380"/>
+              <line x1="280" y1="210" x2="80" y2="340"/>
+              <line x1="280" y1="210" x2="70" y2="210"/>
+              <line x1="280" y1="210" x2="170" y2="360"/>
+              <line x1="280" y1="210" x2="390" y2="380"/>
+            </g>
+
+            <!-- center -->
+            <circle cx="280" cy="210" r="34" fill="var(--bg)" stroke="var(--accent)" stroke-width="1.5"/>
+            <text x="280" y="207" text-anchor="middle" class="node-label center">savalet</text>
+            <text x="280" y="221" text-anchor="middle" class="node-label dim">core</text>
+
+            <!-- orbit satellites -->
+            <g>
+              <circle cx="110" cy="90" r="24" fill="var(--bg-panel)" stroke="var(--line)"/>
+              <text x="110" y="94" text-anchor="middle" class="node-label">C</text>
+              <text x="110" y="120" text-anchor="middle" class="node-label dim">42sh·crash</text>
+            </g>
+            <g>
+              <circle cx="460" cy="80" r="26" fill="var(--bg-panel)" stroke="var(--line)"/>
+              <text x="460" y="85" text-anchor="middle" class="node-label">C++</text>
+              <text x="460" y="112" text-anchor="middle" class="node-label dim">dotfiles</text>
+            </g>
+            <g>
+              <circle cx="500" cy="220" r="22" fill="var(--bg-panel)" stroke="var(--line)"/>
+              <text x="500" y="224" text-anchor="middle" class="node-label">Node</text>
+              <text x="500" y="250" text-anchor="middle" class="node-label dim">vyme api</text>
+            </g>
+            <g>
+              <circle cx="470" cy="350" r="22" fill="var(--bg-panel)" stroke="var(--line)"/>
+              <text x="470" y="354" text-anchor="middle" class="node-label">Docker</text>
+            </g>
+            <g>
+              <circle cx="280" cy="380" r="22" fill="var(--bg-panel)" stroke="var(--line)"/>
+              <text x="280" y="384" text-anchor="middle" class="node-label">K8s</text>
+            </g>
+            <g>
+              <circle cx="80" cy="340" r="22" fill="var(--bg-panel)" stroke="var(--line)"/>
+              <text x="80" y="344" text-anchor="middle" class="node-label">Dart</text>
+            </g>
+            <g>
+              <circle cx="70" cy="210" r="24" fill="var(--bg-panel)" stroke="var(--line)"/>
+              <text x="70" y="214" text-anchor="middle" class="node-label">Nix</text>
+            </g>
+            <g>
+              <circle cx="170" cy="360" r="22" fill="var(--bg-panel)" stroke="var(--line)"/>
+              <text x="170" y="364" text-anchor="middle" class="node-label">Java</text>
+            </g>
+            <g>
+              <circle cx="390" cy="380" r="22" fill="var(--bg-panel)" stroke="var(--line)"/>
+              <text x="390" y="384" text-anchor="middle" class="node-label">SQL</text>
+            </g>
+
+            <!-- pulsing nodes -->
+            <circle cx="460" cy="80" r="28" fill="none" stroke="var(--accent)" stroke-width=".8" opacity=".5">
+              <animate attributeName="r" from="26" to="40" dur="2.4s" repeatCount="indefinite"/>
+              <animate attributeName="opacity" from=".6" to="0" dur="2.4s" repeatCount="indefinite"/>
+            </circle>
+            <circle cx="110" cy="90" r="26" fill="none" stroke="var(--accent)" stroke-width=".8" opacity=".5">
+              <animate attributeName="r" from="24" to="38" dur="3s" begin=".8s" repeatCount="indefinite"/>
+              <animate attributeName="opacity" from=".6" to="0" dur="3s" begin=".8s" repeatCount="indefinite"/>
+            </circle>
+          </svg>
+        </div>
+
+        <div class="stack-list">
+          <div class="stack-group">
+            <h4>Low-level &amp; systems <span>core</span></h4>
+            <div class="items">
+              <span class="chip primary">C</span><span class="chip primary">C++</span>
+              <span class="chip">Make</span><span class="chip">Gradle</span>
+              <span class="chip">Arduino</span><span class="chip">ESP32</span>
+            </div>
+          </div>
+          <div class="stack-group">
+            <h4>Self-host &amp; cloud <span>daily</span></h4>
+            <div class="items">
+              <span class="chip primary">Nix</span><span class="chip primary">Docker</span>
+              <span class="chip">K8s</span><span class="chip">Ansible</span><span class="chip">Nginx</span>
+              <span class="chip">Cloudflare</span><span class="chip">Scaleway</span><span class="chip">OVH</span>
+              <span class="chip">AWS</span><span class="chip">Azure</span>
+            </div>
+          </div>
+          <div class="stack-group">
+            <h4>Web &amp; apps <span>∞</span></h4>
+            <div class="items">
+              <span class="chip primary">Node.js</span><span class="chip primary">JavaScript</span>
+              <span class="chip">Express</span><span class="chip">Electron</span>
+              <span class="chip">Flutter</span><span class="chip">Dart</span>
+              <span class="chip">Vite</span><span class="chip">Chart.js</span>
+            </div>
+          </div>
+          <div class="stack-group">
+            <h4>Data &amp; observability</h4>
+            <div class="items">
+              <span class="chip">MariaDB</span><span class="chip">Redis</span>
+              <span class="chip">SQLite</span><span class="chip">InfluxDB</span>
+              <span class="chip">Elastic</span><span class="chip">Prometheus</span>
+              <span class="chip">Grafana</span>
+            </div>
+          </div>
+          <div class="stack-group">
+            <h4>Homelab &amp; fun</h4>
+            <div class="items">
+              <span class="chip">Pi-Hole</span><span class="chip">Jellyfin</span>
+              <span class="chip">Home Assistant</span><span class="chip">Wireguard</span>
+              <span class="chip">Raspberry Pi</span><span class="chip">Zigbee</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- PROJECTS -->
+    <section id="projects" data-screen-label="03 projects">
+      <span class="sec-tag">§ 03 / 06</span>
+      <div class="prompt-line">
+        <span class="p1">savalet</span><span class="arrow">@</span><span class="p2">portfolio</span><span class="arrow">:~$ </span>git log --oneline --graph --all
+      </div>
+      <h2 class="title" data-i18n="proj_title">What I've <em>shipped</em>.</h2>
+      <p class="lede" data-i18n="proj_lede">A selection, laid out as a <b>git log</b>. Click a commit to open it on GitHub.</p>
+
+      <div class="git-log">
+
+        <a class="commit" href="https://vyme.fr" target="_blank" rel="noopener">
+          <div class="graph">●</div>
+          <div class="hash">4f2a91c</div>
+          <div class="msg">
+            <div class="t" data-i18n="proj_v_t">Vyme — bare-metal &amp; cloud host 🚀</div>
+            <div class="d" data-i18n="proj_v_d">My company. Self-hosted infra, custom panel, Proxmox VMs, Pterodactyl. The culmination of 5+ years of homelab.</div>
+            <div class="tags">
+              <span class="tag star">★ flagship</span>
+              <span class="tag lang">Nix</span><span class="tag lang">K8s</span><span class="tag lang">Proxmox</span>
+              <span class="tag">prod</span>
+            </div>
+          </div>
+          <div class="when">HEAD → main</div>
+        </a>
+
+        <a class="commit" href="https://github.com/Savapitech/42sh" target="_blank" rel="noopener">
+          <div class="graph">┃ ●</div>
+          <div class="hash">b81d24e</div>
+          <div class="msg">
+            <div class="t" data-i18n="proj_42_t">42sh — POSIX shell in C</div>
+            <div class="d" data-i18n="proj_42_d">Reimplemented tcsh / bash from scratch in pure C. Lexer, parser, job control, piping, heredoc, globbing…</div>
+            <div class="tags">
+              <span class="tag star">★ Epitech</span>
+              <span class="tag lang">C</span><span class="tag">AST</span><span class="tag">tcsh</span>
+            </div>
+          </div>
+          <div class="when">Epitech S2</div>
+        </a>
+
+        <a class="commit" href="https://github.com/crash-systems/crash" target="_blank" rel="noopener">
+          <div class="graph">┃ ●</div>
+          <div class="hash">a19f03d</div>
+          <div class="msg">
+            <div class="t" data-i18n="proj_cr_t">crash — Crash Resilient Augmented SHell</div>
+            <div class="d" data-i18n="proj_cr_d">A shell that won't die. Automatic recovery, context snapshots, hot-loadable plugins. Side project with friends.</div>
+            <div class="tags">
+              <span class="tag lang">C</span><span class="tag">experimental</span><span class="tag">open-source</span>
+            </div>
+          </div>
+          <div class="when">8 mo ago</div>
+        </a>
+
+        <a class="commit" href="https://github.com/vyme-fr/MercuryCloud_Dashboard" target="_blank" rel="noopener">
+          <div class="graph">┃ ●</div>
+          <div class="hash">6c0e77a</div>
+          <div class="msg">
+            <div class="t" data-i18n="proj_mc_t">MercuryCloud — self-host panel</div>
+            <div class="d" data-i18n="proj_mc_d">Dashboard wired to Pterodactyl / Proxmox for managing services &amp; clients. Refactor in progress, old version archived.</div>
+            <div class="tags">
+              <span class="tag star">★</span>
+              <span class="tag lang">JavaScript</span><span class="tag lang">Express</span><span class="tag">archived</span>
+            </div>
+          </div>
+          <div class="when">archive</div>
+        </a>
+
+        <a class="commit" href="https://github.com/savalet/dotfiles" target="_blank" rel="noopener">
+          <div class="graph">┃ ●</div>
+          <div class="hash">7d3e511</div>
+          <div class="msg">
+            <div class="t" data-i18n="proj_dot_t">dotfiles — NixOS reproducible setup</div>
+            <div class="d" data-i18n="proj_dot_d">Ma config entière en Nix flakes.</div>
+            <div class="tags">
+              <span class="tag lang">Nix</span><span class="tag">flakes</span><span class="tag">reproducible</span>
+            </div>
+          </div>
+          <div class="when">ongoing</div>
+        </a>
+
+        <a class="commit" href="https://github.com/Savapitech/pool-tek1" target="_blank" rel="noopener">
+          <div class="graph">┃ ●</div>
+          <div class="hash">1f8b2c4</div>
+          <div class="msg">
+            <div class="t" data-i18n="proj_ep_t">Epitech Pool — 3 weeks of intense C</div>
+            <div class="d" data-i18n="proj_ep_d">Every day of the Epitech pool. 150+ exercises, sleepless nights, and a lot of segfault debugging.</div>
+            <div class="tags">
+              <span class="tag lang">C</span><span class="tag">fundamentals</span>
+            </div>
+          </div>
+          <div class="when">1st year</div>
+        </a>
+
+        <a class="commit" href="https://github.com/savalet" target="_blank" rel="noopener">
+          <div class="graph">│<br>└─●</div>
+          <div class="hash">init</div>
+          <div class="msg">
+            <div class="t" data-i18n="proj_in_t">initial commit — Serial.println("Hello, world!")</div>
+            <div class="d" data-i18n="proj_in_d">First Arduino script around 2013. Little Savinien who had no idea what was coming.</div>
+            <div class="tags">
+              <span class="tag">nostalgia</span>
+            </div>
+          </div>
+          <div class="when">~2013</div>
+        </a>
+
+      </div>
+    </section>
+
+    <!-- NOW / JOURNAL -->
+    <section id="infra" data-screen-label="04 now">
+      <span class="sec-tag">§ 04 / 06</span>
+      <div class="prompt-line">
+        <span class="p1">savalet</span><span class="arrow">@</span><span class="p2">portfolio</span><span class="arrow">:~$ </span>tail -f ~/.journal
+      </div>
+      <h2 class="title" data-i18n="now_title">What I'm <em>currently</em><br>up to.</h2>
+      <p class="lede" data-i18n="now_lede">A public <b>/now</b> page. No live metrics, just honest notes about what I'm building, reading, and listening to this month. Updated by hand, old-school.</p>
+
+      <div class="infra-grid">
+        <div class="panel">
+          <h3><span data-i18n="now_build">building</span> <span class="status">● april 2026</span></h3>
+          <div class="journal">
+            <div class="j-entry">
+              <div class="j-date">04.18</div>
+              <div class="j-body">
+                <div class="j-t" data-i18n="now_b1_t">Epitech projects</div>
+                <div class="j-d" data-i18n="now_b1_d">I'm currently on the Raytracer and Cartritge project, you can follow it on my dedicated Epitech Github organisation: <a href="https://github.com/Savapitech">github.com/Savapitech</a></div>
+              </div>
+            </div>
+            <div class="j-entry">
+              <div class="j-date">04.10</div>
+              <div class="j-body">
+                <div class="j-t" data-i18n="now_b2_t">Vyme — panel rewrite</div>
+                <div class="j-d" data-i18n="now_b2_d">Migrating the legacy WHMCS in PHP billing system to a clean Node service. Ripping out tech debt one invoice at a time.</div>
+              </div>
+            </div>
+            <div class="j-entry">
+              <div class="j-date">03.28</div>
+              <div class="j-body">
+                <div class="j-t" data-i18n="now_b3_t">Openstack lab</div>
+                <div class="j-d" data-i18n="now_b3_d">Begining of my Openstack homelab, the goal is to implement it to Vyme.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel" style="grid-column: 1 / -1;">
+          <h3><span data-i18n="now_learn">learning track</span> <span class="status" data-i18n="now_learn_s">● Q2 goals</span></h3>
+          <div class="goals">
+            <div class="goal">
+              <div class="goal-head"><b>Rust</b> <span data-i18n="goal_rust_s">just started</span></div>
+              <div class="bar"><i style="width:10%"></i></div>
+              <div class="goal-note" data-i18n="goal_rust_n">Just started <i>The Rust Programming Language</i>. Rewrote a few C utils.</div>
+            </div>
+            <div class="goal">
+              <div class="goal-head"><b>eBPF</b> <span data-i18n="goal_ebpf_s">curious, exploring</span></div>
+              <div class="bar"><i style="width:22%"></i></div>
+              <div class="goal-note" data-i18n="goal_ebpf_n">Kernel tracing experiments. bpftrace &gt; strace for 90% of my debugging now.</div>
+            </div>
+            <div class="goal">
+              <div class="goal-head"><b>Zig</b> <span data-i18n="goal_zig_s">playing around</span></div>
+              <div class="bar"><i style="width:14%"></i></div>
+              <div class="goal-note" data-i18n="goal_zig_n">Wrote a tiny allocator just to see. Might rewrite 42sh's REPL in it someday.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TERMINAL -->
+    <section id="term" data-screen-label="05 terminal">
+      <span class="sec-tag">§ 05 / 06</span>
+      <div class="prompt-line">
+        <span class="p1">savalet</span><span class="arrow">@</span><span class="p2">portfolio</span><span class="arrow">:~$ </span>./ask-me-anything.sh
+      </div>
+      <h2 class="title" data-i18n="term_title">Ask me<br>a <em>question</em>.</h2>
+      <p class="lede" data-i18n="term_lede">Interactive terminal. Try <code style="color:var(--accent)">help</code>, <code style="color:var(--accent)">ls</code>, <code style="color:var(--accent)">cat about.txt</code>, <code style="color:var(--accent)">stack</code>, <code style="color:var(--accent)">contact</code>. ↑/↓ for history.</p>
+
+      <div class="terminal">
+        <div class="term-head">
+          <div class="dots"><i></i><i></i><i></i></div>
+          <div class="title-t">savalet@portfolio: ~/ask</div>
+          <div>zsh · 80×24</div>
+        </div>
+        <div class="term-body" id="term-body">
+          <div class="line out">Type <span class="a">help</span> to see available commands. ↑/↓ for history.</div>
+        </div>
+        <div class="term-input-row">
+          <span class="prompt">savalet@portfolio <b>~</b> $</span>
+          <input id="term-input" autocomplete="off" spellcheck="false" autocapitalize="off" />
+        </div>
+      </div>
+    </section>
+
+    <!-- CONTACT -->
+    <section id="contact" data-screen-label="06 contact">
+      <span class="sec-tag">§ 06 / 06</span>
+      <div class="prompt-line">
+        <span class="p1">savalet</span><span class="arrow">@</span><span class="p2">portfolio</span><span class="arrow">:~$ </span>cat /etc/contacts.d/*
+      </div>
+      <h2 class="title" data-i18n="contact_title">Let's <em>talk</em>.</h2>
+      <p class="lede" data-i18n="contact_lede">Freelance SysAdmin work, open-source collabs, or just a question — drop me a line. I reply within 24h.</p>
+
+      <div class="contact-grid">
+        <a class="contact-card" href="/cdn-cgi/l/email-protection#90fdf5d0e3f1e6f1fcf5e4bef4f5e6">
+          <span class="lbl" data-i18n="ct_email">→ Email</span>
+          <span class="val">me@savalet.dev</span>
+          <span class="hint" data-i18n="ct_email_h">PGP available on request</span>
+        </a>
+        <a class="contact-card" href="https://github.com/savalet" target="_blank" rel="noopener">
+          <span class="lbl" data-i18n="ct_gh">→ GitHub</span>
+          <span class="val">@savalet</span>
+          <span class="hint" data-i18n="ct_gh_h">29 repos</span>
+        </a>
+        <a class="contact-card" href="https://twitter.com/savalet_" target="_blank" rel="noopener">
+          <span class="lbl" data-i18n="ct_x">→ X / Twitter</span>
+          <span class="val">@savalet_</span>
+          <span class="hint" data-i18n="ct_x_h">shitposts and infra drama</span>
+        </a>
+        <a class="contact-card" href="https://vyme.fr" target="_blank" rel="noopener">
+          <span class="lbl" data-i18n="ct_v">→ Vyme</span>
+          <span class="val">vyme.fr</span>
+          <span class="hint" data-i18n="ct_v_h">my company · FR hosting</span>
+        </a>
+      </div>
+    </section>
+
+    <div class="footer-bottom">
+      <div>savalet.dev · v0.1 · built with neovim &amp;</div>
+      <div>Rennes → everywhere · <span style="color:var(--accent)">●</span> online</div>
+    </div>
+
+  </main>
+</div>
+
+<!-- TWEAKS -->
+<div class="tweaks" id="tweaks">
+  <h5>Tweaks <button id="close-tweaks">×</button></h5>
+  <div class="tweak-row">
+    <span class="lbl">Accent</span>
+    <div class="swatches" id="acc">
+      <div class="swatch" data-v="lime" style="background:#b8ff4a"></div>
+      <div class="swatch" data-v="amber" style="background:#ffb454"></div>
+      <div class="swatch" data-v="magenta" style="background:#e879c6"></div>
+      <div class="swatch" data-v="cyan" style="background:#7dd3fc"></div>
+      <div class="swatch" data-v="white" style="background:#f4f6f1"></div>
+    </div>
+  </div>
+  <div class="tweak-row">
+    <span class="lbl">Scanlines</span>
+    <label class="swi"><input type="checkbox" id="tw-scan" checked/></label>
+  </div>
+  <div class="tweak-row">
+    <span class="lbl">Boot animation</span>
+    <label class="swi"><input type="checkbox" id="tw-boot" checked/></label>
+  </div>
+  <div style="font-size:10px;color:var(--fg-faint);margin-top:8px;border-top:1px dashed var(--line-soft);padding-top:8px;">⌘K / Ctrl+K to toggle</div>
+</div>
+
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js" defer></script><script>
+/* ---------- I18N ---------- */
+const I18N = {
+  en: {
+    side_avail: "Available for freelance & collabs",
+    side_role: "role", side_based: "based", side_age: "age", side_school: "school", side_build: "building", side_shell: "shell",
+    nav_whoami: "whoami", nav_stack: "stack", nav_projects: "projects", nav_infra: "now", nav_now: "now", nav_term: "terminal", nav_contact: "contact",
+    hero_title: 'I break things,<br>then I <em>ship them</em> — <br>with a <em>kubelet</em> on top.',
+    hero_lede: "Hey — I'm <b>Savinien</b>, aka <b>savalet</b>. Student at <b>Epitech Rennes</b>, I spend my days between <b>low-level C</b>, <b>self-hosted infra</b> and <b>Nix flake tinkering</b>. I'm building <b>Vyme</b>, my bare-metal hosting company, and working on <b>Epitech</b> projects. I like reproducible systems, tidy cables, and well-formatted logs.",
+    stack_title: 'Tech <em>constellation</em>.',
+    stack_lede: "40+ tools in daily rotation. Main axes: <b>low-level & systems</b>, <b>cloud & self-host</b>, <b>full-stack web</b>. Hover the graph.",
+    proj_title: "What I've <em>shipped</em>.",
+    proj_lede: 'A selection, laid out as a <b>git log</b>. Click a commit to open it on GitHub.',
+    proj_v_t: "Vyme — bare-metal & cloud host 🚀",
+    proj_v_d: "My company. Self-hosted infra, custom panel, Proxmox VMs, Pterodactyl. The culmination of 5+ years of homelab.",
+    proj_42_t: "42sh — POSIX shell in C",
+    proj_42_d: "Reimplemented tcsh / bash from scratch in pure C. Lexer, parser, job control, piping, heredoc, globbing…",
+    proj_cr_t: "crash — Crash Resilient Augmented SHell",
+    proj_cr_d: "A shell that won't die. Automatic recovery, context snapshots, hot-loadable plugins. Side project with friends.",
+    proj_mc_t: "MercuryCloud — self-host panel",
+    proj_mc_d: "Dashboard wired to Pterodactyl / Proxmox for managing services & clients. Refactor in progress, old version archived.",
+    proj_dot_t: "dotfiles — NixOS reproducible setup",
+    proj_dot_d: "My entire config in Nix flakes. One <code style='color:var(--accent)'>nixos-rebuild switch</code> and any machine is set up.",
+    proj_ep_t: "Epitech Pool — 3 weeks of intense C",
+    proj_ep_d: "Every day of the Epitech pool. 150+ exercises, sleepless nights, and a lot of segfault debugging.",
+    proj_in_t: 'initial commit — Serial.println("Hello, world!")',
+    proj_in_d: "First Arduino script around 2013. Little Savinien who had no idea what was coming.",
+    now_title: "What I'm <em>currently</em><br>up to.",
+    now_lede: "A public <b>/now</b> page. No live metrics, just honest notes about what I'm building, reading, and listening to this month. Updated by hand, old-school.",
+    now_build: "building", now_learn: "learning track", now_learn_s: "● Q2 goals",
+    now_b1_t: "Epitech projects",
+    now_b1_d: "Currently working on the Raytracer and Cartridge projects. Follow along on my dedicated Epitech GitHub org: <a href='https://github.com/Savapitech'>github.com/Savapitech</a>",
+    now_b2_t: "Vyme — panel rewrite",
+    now_b2_d: "Migrating the legacy WHMCS PHP billing system to a clean Node service. Ripping out tech debt one invoice at a time.",
+    now_b3_t: "Openstack lab",
+    now_b3_d: "Beginning of my Openstack homelab. Goal: integrate it into Vyme's infrastructure.",
+    goal_rust_s: "just started",
+    goal_rust_n: "Just started <i>The Rust Programming Language</i>. Rewrote a few C utils.",
+    goal_ebpf_s: "curious, exploring",
+    goal_ebpf_n: "Kernel tracing experiments. bpftrace > strace for 90% of my debugging now.",
+    goal_zig_s: "playing around",
+    goal_zig_n: "Wrote a tiny allocator just to see. Might rewrite 42sh's REPL in it someday.",
+    term_title: "Ask me<br>a <em>question</em>.",
+    term_lede: "Interactive terminal. Try <code style='color:var(--accent)'>help</code>, <code style='color:var(--accent)'>ls</code>, <code style='color:var(--accent)'>cat about.txt</code>, <code style='color:var(--accent)'>stack</code>, <code style='color:var(--accent)'>contact</code>. ↑/↓ for history.",
+    contact_title: "Let's <em>talk</em>.",
+    contact_lede: "Freelance SysAdmin work, open-source collabs, or just a question — drop me a line. I reply within 24h.",
+    ct_email: "→ Email", ct_email_h: "PGP available on request",
+    ct_gh: "→ GitHub", ct_gh_h: "29 repos",
+    ct_x: "→ X / Twitter", ct_x_h: "shitposts and infra drama",
+    ct_v: "→ Vyme", ct_v_h: "my company · FR hosting",
+  },
+  fr: {
+    side_avail: "Dispo pour freelance &amp; collabs",
+    side_role: "rôle", side_based: "basé à", side_age: "âge", side_school: "école", side_build: "je construis", side_shell: "shell",
+    nav_whoami: "whoami", nav_stack: "stack", nav_projects: "projets", nav_infra: "now", nav_now: "now", nav_term: "terminal", nav_contact: "contact",
+    hero_title: "Je casse des trucs,<br>puis je les <em>ship</em> —<br>avec un <em>kubelet</em> dessus.",
+    hero_lede: "Hey — je suis <b>Savinien</b>, aka <b>savalet</b>. Étudiant à <b>Epitech Rennes</b>, je passe mes journées entre <b>C bas-niveau</b>, <b>infra auto-hébergée</b> et <b>bricolage Nix</b>. Je bosse sur <b>Vyme</b>, mon entreprise d'hébergement bare-metal, et sur les projets <b>Epitech</b>. J'aime les systèmes reproductibles, les câbles bien rangés, et les logs bien formatés.",
+    stack_title: "Constellation <em>technique</em>.",
+    stack_lede: "Plus de 40 outils au quotidien. Les gros pôles : <b>bas-niveau &amp; systèmes</b>, <b>cloud &amp; self-host</b>, <b>web full-stack</b>. Survole le graph.",
+    proj_title: "Ce que j'ai <em>commit</em>.",
+    proj_lede: "Une sélection, rangée comme un <b>git log</b>. Clique un commit pour l'ouvrir sur GitHub.",
+    proj_v_t: "Vyme — hébergeur bare-metal &amp; cloud FR 🚀",
+    proj_v_d: "Mon entreprise. Infra auto-hébergée, panel custom, VMs Proxmox, Pterodactyl. L'aboutissement de 5+ ans de homelab.",
+    proj_42_t: "42sh — shell POSIX écrit en C",
+    proj_42_d: "Réimplémentation de tcsh / bash from scratch en C pur. Lexer, parser, job control, piping, heredoc, globbing…",
+    proj_cr_t: "crash — Crash Resilient Augmented SHell",
+    proj_cr_d: "Un shell qui ne meurt pas. Recovery automatique, snapshots de contexte, plugins chargeables à chaud. Projet perso entre potes.",
+    proj_mc_t: "MercuryCloud — panel self-host",
+    proj_mc_d: "Dashboard branché Pterodactyl / Proxmox pour gérer services &amp; clients. Refactor en cours, ancienne version archivée.",
+    proj_dot_t: "dotfiles — NixOS reproducible setup",
+    proj_dot_d: "Ma config entière en Nix flakes. Un seul <code style='color:var(--accent)'>nixos-rebuild switch</code> et la machine est prête.",
+    proj_ep_t: "Epitech Pool — 3 semaines de C intense",
+    proj_ep_d: "Tous les jours de la piscine Epitech. 150+ exos, des nuits blanches, et beaucoup de segfaults à débugger.",
+    proj_in_t: 'initial commit — Serial.println("Hello, world!")',
+    proj_in_d: "Premier script Arduino vers 2013. Petit Savinien qui ne savait pas ce qu'il lui arrivait.",
+    now_title: "Ce que je fais <em>en ce moment</em>.",
+    now_lede: "Une page <b>/now</b> publique. Pas de stats live, juste des notes honnêtes sur ce que je construis, lis et écoute ce mois-ci. Mise à jour à la main, à l'ancienne.",
+    now_build: "en construction", now_learn: "plan d'apprentissage", now_learn_s: "● objectifs T2",
+    now_b1_t: "Projets Epitech",
+    now_b1_d: "En ce moment sur le Raytracer et le projet Cartridge. Suis ça sur mon orga GitHub Epitech dédiée : <a href='https://github.com/Savapitech'>github.com/Savapitech</a>",
+    now_b2_t: "Vyme — refonte du panel",
+    now_b2_d: "Migration du billing WHMCS PHP legacy vers un service Node propre. Je retire la dette technique facture par facture.",
+    now_b3_t: "Lab Openstack",
+    now_b3_d: "Début de mon homelab Openstack. Objectif : l'intégrer à l'infra Vyme.",
+    goal_rust_s: "viens de commencer",
+    goal_rust_n: "Je viens de commencer <i>The Rust Programming Language</i>. Réécrit quelques utils C.",
+    goal_ebpf_s: "curieux, j'explore",
+    goal_ebpf_n: "Expérimentations tracing kernel. bpftrace > strace pour 90% de mon debug maintenant.",
+    goal_zig_s: "je joue avec",
+    goal_zig_n: "Écrit un petit allocateur juste pour voir. Je réécrirai peut-être la REPL de 42sh avec un jour.",
+    term_title: "Posez-moi<br>une <em>question</em>.",
+    term_lede: "Terminal interactif. Essaye <code style='color:var(--accent)'>help</code>, <code style='color:var(--accent)'>ls</code>, <code style='color:var(--accent)'>cat about.txt</code>, <code style='color:var(--accent)'>stack</code>, <code style='color:var(--accent)'>contact</code>. ↑/↓ pour l'historique.",
+    contact_title: "On se <em>parle</em> ?",
+    contact_lede: "Freelance SysAdmin, collab open-source, ou juste une question — glissez-moi un mot. Je réponds sous 24h.",
+    ct_email: "→ Email", ct_email_h: "PGP disponible sur demande",
+    ct_gh: "→ GitHub", ct_gh_h: "29 repos",
+    ct_x: "→ X / Twitter", ct_x_h: "shitposts et infra drama",
+    ct_v: "→ Vyme", ct_v_h: "ma boîte · hébergement FR",
+  }
+};
+
+function resolveLang(){
+  if (TWEAKS.lang && TWEAKS.lang !== 'auto') return TWEAKS.lang;
+  const n = (navigator.language || 'en').slice(0,2).toLowerCase();
+  return n === 'fr' ? 'fr' : 'en';
+}
+let currentLang = resolveLang();
+function applyLang(l){
+  currentLang = l;
+  document.documentElement.lang = l;
+  const dict = I18N[l];
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const k = el.getAttribute('data-i18n');
+    if (dict[k] != null) el.innerHTML = dict[k];
+  });
+  document.getElementById('lang-cur').textContent = l.toUpperCase();
+  document.querySelectorAll('#lang-menu button').forEach(b=>b.classList.toggle('active', b.dataset.lang===l));
+}
+applyLang(currentLang);
+
+const langBtn = document.getElementById('lang-btn');
+const langMenu = document.getElementById('lang-menu');
+langBtn.addEventListener('click', e=>{ e.stopPropagation(); langMenu.classList.toggle('open'); });
+document.addEventListener('click', ()=>langMenu.classList.remove('open'));
+document.querySelectorAll('#lang-menu button').forEach(b=>{
+  b.addEventListener('click', ()=>{
+    applyLang(b.dataset.lang);
+    langMenu.classList.remove('open');
+    window.parent.postMessage({type:'__edit_mode_set_keys', edits:{lang: b.dataset.lang}}, '*');
+  });
+});
+
+/* ---------- BOOT ---------- */
+const boot = document.getElementById('boot');
+if (!TWEAKS.showBootAnim) { boot.style.display='none'; }
+else {
+  setTimeout(() => boot.classList.add('hide'), 1900);
+  setTimeout(() => boot.style.display='none', 2400);
+}
+
+/* ---------- ACCENT ---------- */
+function setAccent(v){ document.documentElement.setAttribute('data-accent', v); document.querySelectorAll('#acc .swatch').forEach(s=>s.classList.toggle('active', s.dataset.v===v)); }
+setAccent(TWEAKS.accent);
+
+/* ---------- UPTIME GRID ---------- */
+const grid = document.getElementById('uptime-grid');
+if (grid) {
+  for (let i=0;i<60;i++){
+    const i_ = document.createElement('i');
+    if (i===42) i_.className='down';
+    else if (i===17 || i===55) i_.className='warn';
+    grid.appendChild(i_);
+  }
+}
+
+/* ---------- NAV ACTIVE ---------- */
+const navLinks = document.querySelectorAll('aside nav a');
+const sections = ['whoami','stack','projects','infra','term','contact'].map(id=>document.getElementById(id));
+function onScroll(){
+  const y = window.scrollY + 150;
+  let active = 0;
+  sections.forEach((s,i)=>{ if (s && s.offsetTop <= y) active = i; });
+  navLinks.forEach((a,i)=>a.classList.toggle('active', i===active));
+}
+window.addEventListener('scroll', onScroll);
+
+/* ---------- TERMINAL ---------- */
+const body = document.getElementById('term-body');
+const input = document.getElementById('term-input');
+const history = []; let hIdx = -1;
+
+const COMMANDS = {
+  help(){ return `<div class="out">Available commands:
+  <span class="a">help</span>       — this menu
+  <span class="a">whoami</span>     — quick intro
+  <span class="a">ls</span>         — list my things
+  <span class="a">cat</span> [f]    — about.txt, skills.md, hobbies.txt
+  <span class="a">stack</span>      — primary languages
+  <span class="a">projects</span>   — featured work
+  <span class="a">contact</span>    — reach me
+  <span class="a">uptime</span>     — system stats
+  <span class="a">sudo</span>       — don't.
+  <span class="a">clear</span>      — clear terminal
+  <span class="a">exit</span>       — ... nope</div>`; },
+  whoami(){ return `<div class="out">savalet — <span class="a">Savinien Petitjean</span>, 21, Rennes 🇫🇷. Student @ <span class="k">Epitech</span>, founder of <span class="a">vyme.fr</span>. SysAdmin heart, dev hands.</div>`; },
+  ls(){ return `<div class="out"><span class="a">about.txt</span>  <span class="a">skills.md</span>  <span class="a">hobbies.txt</span>  projects/  infra/  .ssh/</div>`; },
+  cat(arg){
+    const files = {
+      'about.txt': `Hi 👋 I am savalet. I break things for a living and put them back together with duct tape, Nix flakes and too much coffee.`,
+      'skills.md': `# primary\n  C, C++, Nix, Docker, Node, Dart\n# comfy\n  Python, Java, K8s, Ansible, Redis, Postgres\n# learning\n  Rust, eBPF, Zig`,
+      'hobbies.txt': `homelab · 3D printing · mechanical keyboards · bikes · french pastries · very opinionated about tab vs space (it's tabs)`
+    };
+    if (!arg) return `<div class="out e">cat: missing operand. try <span class="a">cat about.txt</span></div>`;
+    const f = files[arg];
+    if (!f) return `<div class="out e">cat: ${arg}: No such file or directory</div>`;
+    return `<div class="out" style="white-space:pre-wrap">${f}</div>`;
+  },
+  stack(){ return `<div class="out"><span class="k">primary:</span> C · C++ · Nix · Node · Dart<br><span class="k">daily:</span> Docker · Nginx · Postgres · Redis · Ansible<br><span class="k">fun:</span> Arduino · Raspberry Pi · Home Assistant</div>`; },
+  projects(){ return `<div class="out">→ <span class="a">vyme.fr</span> · bare-metal hosting (flagship)<br>→ <span class="a">Savapitech/42sh</span> · POSIX shell in C<br>→ <span class="a">crash-systems/crash</span> · resilient shell · exp.<br>→ <span class="a">vyme-fr/MercuryCloud</span> · self-host panel<br>see <span class="a">#projects</span> for more.</div>`; },
+  contact(){ return `<div class="out">mail: <span class="a">me@savalet.dev</span><br>github: <span class="a">@savalet</span><br>x: <span class="a">@savalet_</span><br>site: <span class="a">savalet.dev</span></div>`; },
+  uptime(){ return `<div class="out"> 21:29:04 up 14 days,  3:12,  1 user,  load average: <span class="a">0.28</span>, <span class="a">0.34</span>, <span class="a">0.41</span></div>`; },
+  sudo(){ return `<div class="out e">[sudo] password for visitor: <br>visitor is not in the sudoers file. This incident will be reported.</div>`; },
+  clear(){ body.innerHTML=''; return null; },
+  exit(){ return `<div class="out e">There is no escape.</div>`; },
+  '': () => null,
+};
+
+function printCmd(raw){
+  const div = document.createElement('div');
+  div.className='line cmd';
+  div.innerHTML = `<span class="p1">savalet@portfolio</span><span> </span><span class="p2">~</span><span> $ </span><span class="txt">${raw.replace(/</g,'&lt;')}</span>`;
+  body.appendChild(div);
+}
+function runCmd(raw){
+  if (!raw.trim()) return;
+  history.push(raw); hIdx = history.length;
+  printCmd(raw);
+  const [c, ...rest] = raw.trim().split(/\s+/);
+  const fn = COMMANDS[c];
+  let out;
+  if (!fn) out = `<div class="out e">zsh: command not found: ${c}. try <span class="a">help</span></div>`;
+  else out = fn(rest.join(' '));
+  if (out){
+    const d = document.createElement('div'); d.innerHTML = out; body.appendChild(d);
+  }
+  body.scrollTop = body.scrollHeight;
+}
+
+input.addEventListener('keydown', e=>{
+  if (e.key==='Enter'){ runCmd(input.value); input.value=''; }
+  else if (e.key==='ArrowUp'){ if (hIdx>0){ hIdx--; input.value = history[hIdx] ?? ''; } e.preventDefault(); }
+  else if (e.key==='ArrowDown'){ if (hIdx<history.length-1){ hIdx++; input.value = history[hIdx]; } else { hIdx = history.length; input.value=''; } e.preventDefault(); }
+});
+// focus when section scrolled to
+document.querySelector('.terminal').addEventListener('click', ()=>input.focus());
+
+/* ---------- TWEAKS ---------- */
+let editMode = false;
+const tweaksEl = document.getElementById('tweaks');
+function openTweaks(){ tweaksEl.classList.add('open'); }
+function closeTweaks(){ tweaksEl.classList.remove('open'); }
+document.getElementById('close-tweaks').onclick = closeTweaks;
+
+document.querySelectorAll('#acc .swatch').forEach(sw=>{
+  sw.addEventListener('click', ()=>{
+    setAccent(sw.dataset.v);
+    window.parent.postMessage({type:'__edit_mode_set_keys', edits:{accent: sw.dataset.v}}, '*');
+  });
+});
+document.getElementById('tw-scan').addEventListener('change', e=>{
+  document.body.classList.toggle('scanlines', e.target.checked);
+});
+document.getElementById('tw-boot').addEventListener('change', e=>{
+  window.parent.postMessage({type:'__edit_mode_set_keys', edits:{showBootAnim: e.target.checked}}, '*');
+});
+
+window.addEventListener('message', e=>{
+  if (!e.data) return;
+  if (e.data.type === '__activate_edit_mode'){ editMode=true; openTweaks(); }
+  else if (e.data.type === '__deactivate_edit_mode'){ editMode=false; closeTweaks(); }
+});
+window.parent.postMessage({type:'__edit_mode_available'}, '*');
+
+// Cmd/Ctrl+K
+document.addEventListener('keydown', e=>{
+  if ((e.metaKey||e.ctrlKey) && e.key.toLowerCase()==='k'){
+    e.preventDefault();
+    tweaksEl.classList.toggle('open');
+  }
+});
+</script>
+</body>
+</html>
